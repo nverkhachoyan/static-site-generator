@@ -45,17 +45,57 @@ def extract_markdown_links(text):
 
 def split_nodes_image(old_nodes):
     new_nodes = []
-    for old_node in old_nodes:
-        if old_node.text_type != text_type_text:
-            new_nodes.append(old_node)
+    for node in old_nodes:
+        if node.text_type != text_type_text:
+            new_nodes.append(node)
             continue
-        split_nodes = []
-        image_tuples = extract_markdown_images(old_node.text)
-        original_text = old_node.text
-        for img_tuple in image_tuples:
-            new_text_list = original_text.split(f"![{img_tuple[0]}]({img_tuple[1]})", 1)
-            split_nodes.append(TextNode(new_text_list[0], text_type_text))
-            split_nodes.append(TextNode(img_tuple[0], text_type_image, img_tuple[1]))
-            original_text = new_text_list[1]
-        new_nodes.extend(split_nodes)
+        image_tuples = extract_markdown_images(node.text)
+        original_text = node.text
+        if len(image_tuples) == 0:
+            new_nodes.append(node)
+            continue
+        for image in image_tuples:
+            sections = original_text.split(f"![{image[0]}]({image[1]})", 1)
+            if len(sections) != 2:
+                raise ValueError("Invalid markdown, missing image tag")
+            if sections[0] != "":
+                new_nodes.append(TextNode(sections[0], text_type_text))
+            new_nodes.append(TextNode(image[0], text_type_image, image[1]))
+            original_text = sections[1]
+        if original_text != "":
+            new_nodes.append(TextNode(original_text, text_type_text))
+    return new_nodes
+
+
+def split_nodes_link(old_nodes):
+    new_nodes = []
+    for node in old_nodes:
+        if node.text_type != text_type_text:
+            new_nodes.append(node)
+            continue
+        link_tuples = extract_markdown_images(node.text)
+        original_text = node.text
+        if len(link_tuples) == 0:
+            new_nodes.append(node)
+            continue
+        for link in link_tuples:
+            sections = original_text.split(f"![{link[0]}]({link[1]})", 1)
+            if len(sections) != 2:
+                raise ValueError("Invalid markdown, missing image tag")
+            if sections[0] != "":
+                new_nodes.append(TextNode(sections[0], text_type_text))
+            new_nodes.append(TextNode(link[0], text_type_image, link[1]))
+            original_text = sections[1]
+        if original_text != "":
+            new_nodes.append(TextNode(original_text, text_type_text))
+    return new_nodes
+
+
+def text_to_textnodes(text):
+    new_nodes = [TextNode(text, text_type_text)]
+    new_nodes = split_nodes_delimiter(new_nodes, "**", text_type_bold)
+    new_nodes = split_nodes_delimiter(new_nodes, "*", text_type_italic)
+    new_nodes = split_nodes_delimiter(new_nodes, "`", text_type_code)
+    new_nodes = split_nodes_image(new_nodes)
+    new_nodes = split_nodes_link(new_nodes)
     return new_nodes
